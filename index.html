@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evolución PAS</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body style="margin:0;padding:15px;font-family:Arial,sans-serif;background:#f5f5f5">
+<div style="max-width:1200px;margin:0 auto;background:white;border-radius:8px;padding:20px;box-shadow:0 2px 15px rgba(0,0,0,0.08)">
+
+<div style="background:linear-gradient(135deg,#979492 0%,#6b6967 100%);padding:15px 20px;border-radius:6px;margin:-20px -20px 15px -20px;color:white">
+<h1 style="margin:0 0 4px 0;font-size:22px;font-weight:600">Evolución del PAS</h1>
+<p style="margin:0;font-size:12px;opacity:0.9">Universidad Complutense de Madrid</p>
+</div>
+
+<div style="background:#f8f9fa;border-radius:6px;padding:12px;margin-bottom:15px;border-left:3px solid #979492">
+<div style="margin-bottom:10px">
+<label style="display:block;font-weight:600;color:#333;margin-bottom:6px;font-size:12px">TIPO DE GRÁFICO</label>
+<button onclick="changeChart('line')" id="btn1" style="padding:6px 12px;background:#979492;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:500;margin-right:6px">Líneas</button>
+<button onclick="changeChart('bar')" id="btn2" style="padding:6px 12px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:500;margin-right:6px">Barras</button>
+<button onclick="downloadData()" style="padding:6px 12px;background:#9B8942;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:500">💾 CSV</button>
+</div>
+<label style="display:block;font-weight:600;color:#333;margin-bottom:6px;font-size:12px">CATEGORÍAS</label>
+<div id="filters" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+</div>
+
+<div style="background:white;padding:12px;border-radius:6px;margin-bottom:15px;box-shadow:0 1px 6px rgba(151,148,146,0.12)">
+<canvas id="chart" style="max-height:320px"></canvas>
+</div>
+
+<div style="background:white;padding:15px;border-radius:6px;box-shadow:0 1px 6px rgba(151,148,146,0.12);overflow-x:auto">
+<h3 style="margin:0 0 10px 0;color:#6b6967;font-size:16px">Tabla de datos</h3>
+<div id="table"></div>
+</div>
+
+<p style="text-align:center;color:#979492;font-size:11px;margin-top:12px">Portal de Transparencia UCM · Datos actualizados: Enero 2026</p>
+
+</div>
+
+<script>
+let c,t='line',d={
+y:['2022','2023','2024','2025','2026'],
+s:[
+{n:'Contratado no permanente',v:[913,1012,731,678,594],c:'#b71234',a:1},
+{n:'Contratado permanente',v:[1161,1146,1243,1310,1281],c:'#979492',a:1},
+{n:'Funcionario',v:[1259,1260,1463,1397,1465],c:'#9B8942',a:1}
+]};
+
+function init(){
+let x=document.getElementById('chart').getContext('2d');
+if(c)c.destroy();
+let ds=d.s.filter(i=>i.a).map(i=>({
+label:i.n,
+data:i.v,
+borderColor:i.c,
+backgroundColor:t=='bar'?i.c:i.c+'30',
+borderWidth:2,
+tension:0.4,
+fill:false,
+pointRadius:4,
+pointHoverRadius:6,
+pointBackgroundColor:i.c,
+pointBorderColor:'#fff',
+pointBorderWidth:2
+}));
+c=new Chart(x,{
+type:t,
+data:{labels:d.y,datasets:ds},
+options:{
+responsive:true,
+maintainAspectRatio:true,
+aspectRatio:2.5,
+plugins:{
+legend:{display:true,position:'bottom',labels:{padding:8,font:{size:10,weight:'500'},color:'#333',boxWidth:10,boxHeight:10}},
+tooltip:{
+backgroundColor:'rgba(107,105,103,0.95)',
+padding:10,
+titleFont:{size:11},
+bodyFont:{size:11},
+titleColor:'#fff',
+bodyColor:'#fff',
+borderColor:'#979492',
+borderWidth:1,
+callbacks:{
+footer:function(its){
+let s=0;
+its.forEach(i=>s+=i.parsed.y);
+return '\nTotal: '+s.toLocaleString('es-ES');
+},
+label:function(ctx){
+return ctx.dataset.label+': '+ctx.parsed.y.toLocaleString('es-ES');
+}
+}}
+},
+scales:{
+y:{
+beginAtZero:true,
+grid:{color:'rgba(151,148,146,0.1)'},
+ticks:{font:{size:10},color:'#333',callback:v=>v.toLocaleString('es-ES')}
+},
+x:{grid:{display:false},ticks:{font:{size:10,weight:'500'},color:'#333'}}
+}
+}});
+}
+
+function changeChart(tp){
+t=tp;
+document.getElementById('btn1').style.background=tp=='line'?'#979492':'#e0e0e0';
+document.getElementById('btn1').style.color=tp=='line'?'white':'#333';
+document.getElementById('btn2').style.background=tp=='bar'?'#979492':'#e0e0e0';
+document.getElementById('btn2').style.color=tp=='bar'?'white':'#333';
+init();
+}
+
+function toggle(i){
+d.s[i].a=!d.s[i].a;
+init();
+updateFilters();
+updateTable();
+}
+
+function updateFilters(){
+let f=document.getElementById('filters');
+f.innerHTML='';
+d.s.forEach((s,i)=>{
+let b=document.createElement('button');
+b.innerHTML='<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+s.c+';margin-right:5px;border:2px solid white;box-shadow:0 1px 2px rgba(0,0,0,0.2)"></span>'+s.n;
+b.style.padding='6px 10px';
+b.style.border='2px solid '+s.c;
+b.style.borderRadius='4px';
+b.style.cursor='pointer';
+b.style.fontSize='11px';
+b.style.fontWeight='500';
+b.style.background=s.a?s.c+'20':'white';
+b.style.color='#333';
+b.style.opacity=s.a?'1':'0.5';
+b.style.transition='all 0.3s';
+b.onmouseover=function(){this.style.transform='translateY(-1px)';this.style.boxShadow='0 2px 6px rgba(151,148,146,0.25)'};
+b.onmouseout=function(){this.style.transform='translateY(0)';this.style.boxShadow='none'};
+b.onclick=()=>toggle(i);
+f.appendChild(b);
+});
+}
+
+function updateTable(){
+let h='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:linear-gradient(135deg,#979492,#6b6967);color:white"><th style="padding:8px;text-align:left;font-weight:600;font-size:11px">Año</th>';
+d.s.forEach(s=>{if(s.a)h+='<th style="padding:8px;text-align:right;font-weight:600;font-size:11px">'+s.n+'</th>'});
+h+='<th style="padding:8px;text-align:right;background:rgba(0,0,0,0.15);font-weight:600;font-size:11px">TOTAL</th></tr></thead><tbody>';
+d.y.forEach((y,i)=>{
+let bg=i%2?'white':'#fafafa';
+h+='<tr style="background:'+bg+';transition:background 0.2s" onmouseover="this.style.background=\'#f5f5f5\'" onmouseout="this.style.background=\''+bg+'\'"><td style="padding:7px;font-weight:600;color:#6b6967">'+y+'</td>';
+let tot=0;
+d.s.forEach(s=>{if(s.a){h+='<td style="padding:7px;text-align:right;color:#555">'+s.v[i].toLocaleString('es-ES')+'</td>';tot+=s.v[i]}});
+h+='<td style="padding:7px;text-align:right;font-weight:700;background:rgba(151,148,146,0.08);color:#6b6967">'+tot.toLocaleString('es-ES')+'</td></tr>';
+});
+h+='</tbody></table>';
+document.getElementById('table').innerHTML=h;
+}
+
+function downloadData(){
+let csv='Año';
+d.s.forEach(s=>{if(s.a)csv+=','+s.n});
+csv+=',Total\n';
+d.y.forEach((y,i)=>{
+csv+=y;
+let tot=0;
+d.s.forEach(s=>{if(s.a){csv+=','+s.v[i];tot+=s.v[i]}});
+csv+=','+tot+'\n';
+});
+let blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+let url=window.URL.createObjectURL(blob);
+let a=document.createElement('a');
+a.href=url;
+a.download='pas_ucm.csv';
+a.click();
+}
+
+init();
+updateFilters();
+updateTable();
+</script>
+</body>
+</html>
